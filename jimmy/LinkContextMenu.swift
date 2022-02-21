@@ -15,11 +15,18 @@ struct LinkContextMenu: View {
         self.link = link
     }
     var body: some View {
-        Button(action: newTab)
-        {
-            Label("Open in new tab", systemImage: "plus.rectangle")
+        VStack {
+            Button(action: newTab)
+            {
+                Label("Open in new tab", systemImage: "plus.rectangle")
+            }
+                .buttonStyle(.plain)
+            Button(action: copyLink)
+            {
+                Label("Copy Link Address", systemImage: "plus.rectangle")
+            }
+                .buttonStyle(.plain)
         }
-            .buttonStyle(.plain)
     }
     
     func newTab() {
@@ -27,5 +34,11 @@ struct LinkContextMenu: View {
         tabList.tabs.append(nt)
         tabList.activeTabId = nt.id
         nt.load()
+    }
+    
+    func copyLink() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(self.link.absoluteString, forType: .string)
     }
 }
