@@ -327,70 +327,99 @@ class ContentParser {
             .foregroundColor: NSColor.secondaryLabelColor
         ]
     }
+    
+    var listStyle: [NSAttributedString.Key: Any] {
+        let pst = NSMutableParagraphStyle()
+        pst.alignment = .left
+        pst.headIndent = tab.fontSize * 2.5
+        pst.firstLineHeadIndent = tab.fontSize * 2.5
+        pst.lineSpacing = tab.fontSize / 3
+        pst.paragraphSpacing = tab.fontSize / 2
+
+        let font = NSFont.systemFont(ofSize: tab.fontSize, weight: .regular)
+        return [
+            .font: font,
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: pst
+        ]
+    }
+    
+    var preStyle: [NSAttributedString.Key: Any] {
+        let pst = NSMutableParagraphStyle()
+        pst.alignment = .left
+        pst.paragraphSpacing = 0
+        pst.paragraphSpacingBefore = 0
+        let tabInterval: CGFloat = 80.0
+        pst.tabStops = (1...20).map { NSTextTab(textAlignment: .left, location: CGFloat($0) * tabInterval) }
+
+        return [
+            .font: NSFont.monospacedSystemFont(ofSize: tab.fontSize, weight: .regular),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: pst
+        ]
+    }
+    
+    var textStyle: [NSAttributedString.Key: Any] {
+        let pst = NSMutableParagraphStyle()
+        pst.alignment = .left
+        pst.lineSpacing = tab.fontSize / 4
+        pst.paragraphSpacing = tab.fontSize
+        pst.paragraphSpacingBefore = tab.fontSize
+
+        let font = NSFont.systemFont(ofSize: tab.fontSize, weight: .regular)
+        return [
+            .font: font,
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: pst
+        ]
+    }
+    
+    var quoteStyle: [NSAttributedString.Key: Any] {
+        let pst = NSMutableParagraphStyle()
+        pst.alignment = .left
+        pst.lineSpacing = tab.fontSize / 3
+        pst.headIndent = tab.fontSize * 3
+        pst.firstLineHeadIndent = tab.fontSize * 3
+        pst.paragraphSpacing = tab.fontSize / 2
+
+        let baseFont = NSFont.systemFont(ofSize: tab.fontSize * 1.2, weight: .regular)
+        let italicFont = fontManager.convert(baseFont, toHaveTrait: .italicFontMask)
+
+        return [
+            .font: italicFont,
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: pst
+        ]
+    }
+    
+    func getLinkAttributes(link: URL?, fontSize: CGFloat) -> [NSAttributedString.Key: Any] {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .left
+        paragraphStyle.lineSpacing = 0
+        paragraphStyle.paragraphSpacing = fontSize / 2
+        paragraphStyle.paragraphSpacingBefore = fontSize / 2
+
+        let font = NSFont.systemFont(ofSize: fontSize, weight: .medium)
+        return [
+            .font: font,
+            .link: link ?? URL(string: "gemini://about")!,
+            .foregroundColor: NSColor.linkColor,
+            .cursor: NSCursor.pointingHand,
+            .paragraphStyle: paragraphStyle
+        ]
+    }
 
     
     func getAttributesForType(_ type: BlockType, link: URL?) -> [NSAttributedString.Key: Any] {
-        
-        
         switch type {
         case .text:
-            let pst = NSMutableParagraphStyle()
-            pst.alignment = .left
-            pst.lineSpacing = tab.fontSize / 4
-            pst.paragraphSpacing = tab.fontSize
-            pst.paragraphSpacingBefore = tab.fontSize
-
-            let font = NSFont.systemFont(ofSize: tab.fontSize, weight: .regular)
-            return [
-                .font: font,
-                .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: pst
-            ]
+            return textStyle
         case .pre:
-            let pst = NSMutableParagraphStyle()
-            pst.alignment = .left
-            pst.paragraphSpacing = 0
-            pst.paragraphSpacingBefore = 0
-            let tabInterval: CGFloat = 80.0
-            pst.tabStops = (1...20).map { NSTextTab(textAlignment: .left, location: CGFloat($0) * tabInterval) }
-
-            return [
-                .font: NSFont.monospacedSystemFont(ofSize: tab.fontSize, weight: .regular),
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .paragraphStyle: pst
-            ]
-
+            return preStyle
         case .list:
-            let pst = NSMutableParagraphStyle()
-            pst.alignment = .left
-            pst.headIndent = tab.fontSize * 2.5
-            pst.firstLineHeadIndent = tab.fontSize * 2.5
-            pst.lineSpacing = tab.fontSize / 3
-            pst.paragraphSpacing = tab.fontSize / 2
-
-            let font = NSFont.systemFont(ofSize: tab.fontSize, weight: .regular)
-            return [
-                .font: font,
-                .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: pst
-            ]
-
+            return listStyle
         case .link:
-            let pst = NSMutableParagraphStyle()
-            pst.alignment = .left
-            pst.lineSpacing = 0
-            pst.paragraphSpacing = tab.fontSize / 2
-            pst.paragraphSpacingBefore = tab.fontSize / 2
-
-            let font = NSFont.systemFont(ofSize: tab.fontSize, weight: .medium)
-            return [
-                .font: font,
-                .link: link ?? URL(string: "gemini://about")!,
-                .foregroundColor: NSColor.linkColor,
-                .cursor: NSCursor.pointingHand,
-                .paragraphStyle: pst
-            ]
-
+            return getLinkAttributes(link: link, fontSize: tab.fontSize)
         case .title1:
             return title1Style
         case .title2:
@@ -398,21 +427,7 @@ class ContentParser {
         case .title3:
             return title3Style
         case .quote:
-            let pst = NSMutableParagraphStyle()
-            pst.alignment = .left
-            pst.lineSpacing = tab.fontSize / 3
-            pst.headIndent = tab.fontSize * 3
-            pst.firstLineHeadIndent = tab.fontSize * 3
-            pst.paragraphSpacing = tab.fontSize / 2
-
-            let baseFont = NSFont.systemFont(ofSize: tab.fontSize * 1.2, weight: .regular)
-            let italicFont = fontManager.convert(baseFont, toHaveTrait: .italicFontMask)
-
-            return [
-                .font: italicFont,
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .paragraphStyle: pst
-            ]
+            return quoteStyle
         case .end:
             return [:]
         }
