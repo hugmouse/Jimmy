@@ -44,7 +44,9 @@ struct AttributedTextImpl {
     @Binding var scrollPosition: Double?
 }
 
+
 extension AttributedTextImpl: NSViewRepresentable {
+    
     func makeNSView(context: Context) -> TextView {
         let nsView = TextView(frame: .zero)
         
@@ -68,36 +70,25 @@ extension AttributedTextImpl: NSViewRepresentable {
     }
     
     func updateNSView(_ nsView: TextView, context: Context) {
-        nsView.textStorage?.setAttributedString(attributedText)
-        nsView.maxLayoutWidth = maxLayoutWidth
-        nsView.onLinkHover = self.onHoverLink
-        
-        nsView.linkTextAttributes = [
-            NSAttributedString.Key.foregroundColor: NSColor.controlAccentColor
-        ]
-        nsView.alllinks = []
-        
-        nsView.textContainer?.maximumNumberOfLines = context.environment.lineLimit ?? 0
-        nsView.textContainer?.lineBreakMode = NSLineBreakMode(
-            truncationMode: context.environment.truncationMode
-        )
-        context.coordinator.openLink = onOpenLink ?? { context.environment.openURL($0) }
-        textSizeViewModel.didUpdateTextView(nsView)
-        //Find green range and scroll to it
-        guard let storage = nsView.textStorage else { return }
-        let wholeRange = NSRange(nsView.string.startIndex..., in: nsView.string)
-        storage.enumerateAttribute(.backgroundColor, in: wholeRange, options: []) { (value, range, pointee) in
-            if let v = value as? NSColor {
-                if v == NSColor.green {
-                    nsView.scrollRangeToVisible(range)
-                }
-            }
+        if nsView.cachedAttribtedText != attributedText {
+            nsView.cachedAttribtedText = attributedText
+            nsView.textStorage?.setAttributedString(attributedText)
+            nsView.maxLayoutWidth = maxLayoutWidth
+            nsView.onLinkHover = self.onHoverLink
+            
+            nsView.linkTextAttributes = [
+                NSAttributedString.Key.foregroundColor: NSColor.controlAccentColor
+            ]
+            nsView.alllinks = []
+            
+            nsView.textContainer?.maximumNumberOfLines = context.environment.lineLimit ?? 0
+            nsView.textContainer?.lineBreakMode = NSLineBreakMode(
+                truncationMode: context.environment.truncationMode
+            )
+            context.coordinator.openLink = onOpenLink ?? { context.environment.openURL($0) }
+            textSizeViewModel.didUpdateTextView(nsView)
+            nsView.scrollToBeginningOfDocument(nil)
         }
-       // print("scroll", scrollPosition)
-        //nsView.scroll(NSPoint(x: 0, y: (scrollPosition ?? 0.0)))
-
-       nsView.scrollToVisible(NSRect(x: 0, y: Int(scrollPosition ?? 0.0), width: 1, height: 1))
-
     }
     
     func makeCoordinator() -> Coordinator {
@@ -109,6 +100,7 @@ extension AttributedTextImpl {
     
     final class TextView: NSTextView {
         var wasHovered: Bool = false
+        var cachedAttribtedText: NSAttributedString?
         var maxLayoutWidth: CGFloat {
             get { textContainer?.containerSize.width ?? 0 }
             set {
