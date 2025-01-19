@@ -32,6 +32,33 @@ class Tab: ObservableObject, Hashable, Identifiable {
     private var ranges: [Range<String.Index>]?
     private var selectedRangeIndex = 0
     
+    let homeTemplate = """
+            # Welcome to JimmJimm
+
+            Simple gemini browser for macOS
+            
+            ## Get started
+
+            Just type the URL you want to visit above, and press enter!
+            Save your favorite sites as bookmarks to be able to reference them later.
+
+            ## 🚀 A few links
+
+            Here are some sites you can visit to start off:
+
+            => gemini://medusae.space/
+            => gemini://transjovian.org/
+            => gemini://geminispace.info/
+            => gemini://gemini.6px.eu/ My personal capsule
+
+            ### Any problems?
+            => https://github.com/jfoucher/Jimmy/issues Open an issue on GitHub
+            => mailto:jfoucher@6px.fr Contact me by email
+            
+            ### About gemini
+            => gemini://geminiprotocol.net/docs/faq.gmi Gemini Protocol FAQ
+            """
+    
     
     init(url: URL) {
         self.url = url
@@ -85,23 +112,9 @@ class Tab: ObservableObject, Hashable, Identifiable {
         self.icon = emojis.emoji(host)
         
         if (host == "about") {
-            let pre = Locale.preferredLanguages[0].prefix(2)
-            let filename = "home_"+pre
-            if let asset = NSDataAsset(name: filename) {
-                let data = asset.data
-                if let text = String(bytes: data, encoding: .utf8) {
-                    cb(error: nil, message: Data(("20 text/gemini\r\n" + text).utf8))
-                    return
-                }
-            } else if let asset = NSDataAsset(name: "home") {
-                let data = asset.data
-                if let text = String(bytes: data, encoding: .utf8) {
-                    cb(error: nil, message: Data(("20 text/gemini\r\n" + text).utf8))
-                    return
-                }
-            }
+            cb(error: nil, message: Data(("20 text/gemini\r\n" + homeTemplate).utf8))
+            return
         }
-        
         
         DispatchQueue.main.async {
             self.loading = true
@@ -132,138 +145,196 @@ class Tab: ObservableObject, Hashable, Identifiable {
     
     func cb(error: NWError?, message: Data?) {
         DispatchQueue.main.async {
-            self.loading = false
-            self.status = ""
-            self.content = []
-            self.textContent = NSAttributedString(string: "")
+            self.resetUIState()
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-            
             if let error = error {
-                
-                self.history.append(TabHistoryItem(url: self.url, scrollposition: 0.0, error: error, message: message))
-                let historyItem = HistoryItem(url: self.url, date: Date(), snippet: "Error")
-                self.globalHistory.addItem(historyItem)
-                
-                
-                let contentParser = ContentParser(content: Data([]), tab: self)
-                if error == NWError.tls(-9808) || error == NWError.tls(-9813) {
-                    
-                    let ats = NSMutableAttributedString(string: String(localized: "Invalid certificate"), attributes: contentParser.title1Style)
-                    
-                    let format = NSLocalizedString("😔 The SSL certificate for %@%@ is invalid.", comment:"SSL certificate invalid for this host. first argument is the emoji, the second the host name")
-
-                    let ats2 = NSMutableAttributedString(string: String(format: format, self.emojis.emoji(self.url.host ?? ""), (self.url.host ?? "")), attributes: contentParser.title3Style)
-                    
-                    self.content = [
-                        LineView(attributed: ats, tab: self),
-                        LineView(attributed: ats2, tab: self),
-                        LineView(data: Data("".utf8), type: "text/ignore-cert", tab: self)
-                    ]
-                    
-                } else if  error == NWError.tls(-9814) {
-                    
-                    let ats = NSMutableAttributedString(string: String(localized: "Expired certificate"), attributes: contentParser.title1Style)
-                    
-                    let format = NSLocalizedString("😔 The SSL certificate for %@%@ has expired.", comment:"SSL certificate expired for this host. first argument is the emoji, the second the host name")
-
-                    let ats2 = NSMutableAttributedString(string: String(format: format, self.emojis.emoji(self.url.host ?? ""), (self.url.host ?? "")), attributes: contentParser.title3Style)
-                    
-                    self.content = [
-                        LineView(attributed: ats, tab: self),
-                        LineView(attributed: ats2, tab: self),
-                        LineView(data: Data("".utf8), type: "text/ignore-cert", tab: self)
-                    ]
-                    
-                } else if error == NWError.dns(-65554) || error == NWError.dns(0)  {
-                    let ats = NSMutableAttributedString(string: String(localized: "Could not connect"), attributes: contentParser.title1Style)
-                    
-                    let ats2 = NSMutableAttributedString(string: String(localized: "Please make sure your internet conection is working properly"), attributes: contentParser.title3Style)
-                    self.content = [
-                        LineView(attributed: ats, tab: self),
-                        LineView(attributed: ats2, tab: self),
-                    ]
-                    
-                } else {
-                    let ats = NSMutableAttributedString(string: String(localized: "Unknown Error"), attributes: contentParser.title1Style)
-                    
-                    let ats2 = NSMutableAttributedString(string: error.localizedDescription, attributes: contentParser.title1Style)
-                    
-                    debugPrint(error)
-                    
-                    self.content = [
-                        LineView(attributed: ats, tab: self),
-                        LineView(attributed: ats2, tab: self),
-                    ]
-                }
-                
+                self.handleError(error: error, message: message)
             } else if let message = message {
-                // Parse the request response
-                let parsedMessage = ContentParser(content: message, tab: self)
-                
-                let historyItem = HistoryItem(url: self.url, date: Date(), snippet: String(parsedMessage.firstTitle))
-                if !(30...39).contains(parsedMessage.header.code) {
-                    self.history.append(TabHistoryItem(url: self.url, scrollposition: 0.0, error: error, message: message))
-                    self.globalHistory.addItem(historyItem)
-                }
-                
-                if (20...29).contains(parsedMessage.header.code) && !parsedMessage.header.contentType.starts(with: "text/") && !parsedMessage.header.contentType.starts(with: "image/") {
-                    // If we have a success response but not of a type we can handle, let ContentParser trigger the file save dialog
-                    // Add to history
-                    
-                    return
-                }
-                
-                if (10...19).contains(parsedMessage.header.code) {
-                    // Input, show answer input box
-                    let ats = NSMutableAttributedString(string: parsedMessage.header.contentType, attributes: parsedMessage.title1Style)
-                    self.content = [
-                        LineView(attributed: ats, tab: self),
-                        LineView(data: Data(), type: "text/answer", tab: self),
-                    ]
-                } else if (20...29).contains(parsedMessage.header.code) {
-                    // Success, show parsed content
-                    self.textContent = parsedMessage.attrStr
-                    self.content = parsedMessage.parsed
-                } else if (30...39).contains(parsedMessage.header.code) {
-                    // Redirect
-                    if let redirect = URL(string: parsedMessage.header.contentType) {
-                        self.url = redirect
-                        self.load()
-                    }
-                } else if parsedMessage.header.code == 51 {
-                    let format = NSLocalizedString("%d Page Not Found", comment:"page not found title. First argument is the error code")
-
-                    let ats = NSMutableAttributedString(string: String(format: format, parsedMessage.header.code), attributes: parsedMessage.title1Style)
-                    
-                    let format2 = NSLocalizedString("Sorry, the page %@ was not found on %@%@", comment:"Page not found error subtitle. first argument is the path, second the icon, third the host name")
-
-                    let ats2 = NSMutableAttributedString(string: String(format: format2, self.url.path, self.emojis.emoji(self.url.host ?? ""), (self.url.host ?? "")), attributes: parsedMessage.title3Style)
-                    
-                    self.content = [
-                        LineView(attributed: ats, tab: self),
-                        LineView(attributed: ats2, tab: self),
-                    ]
-                } else {
-                    
-                    let format1 = NSLocalizedString("%d Server Error", comment:"Generic server error title. First param is the error code")
-                    
-                    let ats = NSMutableAttributedString(string: String(format: format1, parsedMessage.header.code), attributes: parsedMessage.title1Style)
-                    
-                    let format = NSLocalizedString("Could not load %@", comment:"Generic server error subtitle. First param is full url")
-
-                    let ats2 = NSMutableAttributedString(string: String(format: format, self.url.absoluteString), attributes: parsedMessage.title2Style)
-                    
-                    ats2.append(NSAttributedString(string: "\n" + parsedMessage.header.contentType, attributes: parsedMessage.title3Style))
-                    
-                    self.content = [
-                        LineView(attributed: ats, tab: self),
-                        LineView(attributed: ats2, tab: self),
-                    ]
-                }
+                self.handleMessage(message: message)
             }
         }
     }
+
+    private func resetUIState() {
+        self.loading = false
+        self.status = ""
+        self.content = []
+        self.textContent = NSAttributedString(string: "")
+    }
+
+    private func handleError(error: NWError, message: Data?) {
+        let historyItem = HistoryItem(url: self.url, date: Date(), snippet: "Error")
+        self.globalHistory.addItem(historyItem)
+        self.history.append(TabHistoryItem(url: self.url, scrollposition: 0.0, error: error, message: message))
+
+        let contentParser = ContentParser(content: Data([]), tab: self)
+        let errorContent: [LineView] = {
+            switch error {
+            case .tls(-9808), .tls(-9813):
+                return invalidCertificateErrorView(parser: contentParser)
+            case .tls(-9814):
+                return expiredCertificateErrorView(parser: contentParser)
+            case .dns(-65554), .dns(0):
+                return couldNotConnectErrorView(parser: contentParser)
+            default:
+                return unknownErrorView(error: error, parser: contentParser)
+            }
+        }()
+        self.content = errorContent
+    }
+
+    private func handleMessage(message: Data) {
+        let parsedMessage = ContentParser(content: message, tab: self)
+        let historyItem = HistoryItem(url: self.url, date: Date(), snippet: String(parsedMessage.firstTitle))
+
+        if !(30...39).contains(parsedMessage.header.code) {
+            self.history.append(TabHistoryItem(url: self.url, scrollposition: 0.0, error: nil, message: message))
+            self.globalHistory.addItem(historyItem)
+        }
+
+        switch parsedMessage.header.code {
+        case 10...19:
+            self.content = createInputContent(parsedMessage: parsedMessage)
+        case 20...29:
+            if !parsedMessage.header.contentType.starts(with: "text/") &&
+                !parsedMessage.header.contentType.starts(with: "image/") {
+                return // Let ContentParser trigger the file save dialog
+            }
+            self.textContent = parsedMessage.attrStr
+            self.content = parsedMessage.parsed
+        case 30...39:
+            handleRedirect(parsedMessage: parsedMessage)
+        case 51:
+            self.content = pageNotFoundView(parsedMessage: parsedMessage)
+        default:
+            self.content = serverErrorView(parsedMessage: parsedMessage)
+        }
+    }
+
+    private func invalidCertificateErrorView(parser: ContentParser) -> [LineView] {
+        let ats = NSMutableAttributedString(
+            string: String(localized: "Invalid certificate"),
+            attributes: parser.title1Style
+        )
+        let format = NSLocalizedString("The SSL certificate for %@%@ is invalid.", comment: "SSL certificate invalid for this host.")
+        let ats2 = NSMutableAttributedString(
+            string: String(format: format, self.emojis.emoji(self.url.host ?? ""), self.url.host ?? ""),
+            attributes: parser.title3Style
+        )
+        return [
+            LineView(attributed: ats, tab: self),
+            LineView(attributed: ats2, tab: self),
+            LineView(data: Data("".utf8), type: "text/ignore-cert", tab: self)
+        ]
+    }
+    
+    private func expiredCertificateErrorView(parser: ContentParser) -> [LineView] {
+        let ats = NSMutableAttributedString(
+            string: String(localized: "Expired certificate"),
+            attributes: parser.title1Style
+        )
+        let format = NSLocalizedString("The SSL certificate for %@%@ has expired.", comment: "SSL certificate expired for this host.")
+        let ats2 = NSMutableAttributedString(
+            string: String(format: format, self.emojis.emoji(self.url.host ?? ""), self.url.host ?? ""),
+            attributes: parser.title3Style
+        )
+        return [
+            LineView(attributed: ats, tab: self),
+            LineView(attributed: ats2, tab: self),
+            LineView(data: Data("".utf8), type: "text/ignore-cert", tab: self)
+        ]
+    }
+
+    private func couldNotConnectErrorView(parser: ContentParser) -> [LineView] {
+        let ats = NSMutableAttributedString(
+            string: "Could not connect",
+            attributes: parser.title1Style
+        )
+        let ats2 = NSMutableAttributedString(
+            string: """
+            This means we can't connect to the capsule. Make sure that:
+            - You have an internet connection
+            - Capsule is healthy
+            """,
+            attributes: parser.textStyle
+        )
+        return [
+            LineView(attributed: ats, tab: self),
+            LineView(attributed: ats2, tab: self)
+        ]
+    }
+
+    private func unknownErrorView(error: NWError, parser: ContentParser) -> [LineView] {
+        let ats = NSMutableAttributedString(
+            string: String(localized: "Unknown Error"),
+            attributes: parser.title1Style
+        )
+        let ats2 = NSMutableAttributedString(
+            string: error.localizedDescription,
+            attributes: parser.title1Style
+        )
+        debugPrint(error)
+        return [
+            LineView(attributed: ats, tab: self),
+            LineView(attributed: ats2, tab: self)
+        ]
+    }
+
+    private func createInputContent(parsedMessage: ContentParser) -> [LineView] {
+        let ats = NSMutableAttributedString(
+            string: parsedMessage.header.contentType,
+            attributes: parsedMessage.title1Style
+        )
+        return [
+            LineView(attributed: ats, tab: self),
+            LineView(data: Data(), type: "text/answer", tab: self)
+        ]
+    }
+
+    private func pageNotFoundView(parsedMessage: ContentParser) -> [LineView] {
+        let format1 = NSLocalizedString("%d Page Not Found", comment: "Page not found title. First argument is the error code")
+        let ats = NSMutableAttributedString(
+            string: String(format: format1, parsedMessage.header.code),
+            attributes: parsedMessage.title1Style
+        )
+        let format2 = NSLocalizedString("Sorry, the page %@ was not found on %@%@", comment: "Page not found subtitle. First argument is the path, second the icon, third the host name")
+        let ats2 = NSMutableAttributedString(
+            string: String(format: format2, self.url.path, self.emojis.emoji(self.url.host ?? ""), self.url.host ?? ""),
+            attributes: parsedMessage.textStyle
+        )
+        return [
+            LineView(attributed: ats, tab: self),
+            LineView(attributed: ats2, tab: self)
+        ]
+    }
+
+    private func serverErrorView(parsedMessage: ContentParser) -> [LineView] {
+        let format1 = NSLocalizedString("%d Server Error", comment: "Generic server error title. First param is the error code")
+        let ats = NSMutableAttributedString(
+            string: String(format: format1, parsedMessage.header.code),
+            attributes: parsedMessage.title1Style
+        )
+        let format2 = NSLocalizedString("Could not load %@", comment: "Generic server error subtitle. First param is full url")
+        let ats2 = NSMutableAttributedString(
+            string: String(format: format2, self.url.absoluteString),
+            attributes: parsedMessage.textStyle
+        )
+        ats2.append(NSAttributedString(string: "\n" + parsedMessage.header.contentType, attributes: parsedMessage.title3Style))
+        return [
+            LineView(attributed: ats, tab: self),
+            LineView(attributed: ats2, tab: self)
+        ]
+    }
+
+
+    private func handleRedirect(parsedMessage: ContentParser) {
+        if let redirect = URL(string: parsedMessage.header.contentType) {
+            self.url = redirect
+            self.load()
+        }
+    }
+
     
     func search(_ str: String) -> [Range<String.Index>] {
         let wholeRange = NSRange(self.textContent.string.startIndex..., in: self.textContent.string)
