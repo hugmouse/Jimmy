@@ -142,7 +142,6 @@ class ContentParser {
                     result.append(NSAttributedString(string: str.trimmingCharacters(in: .whitespaces), attributes: attr))
                 }
                 
-                //self.parsed.append(LineView(data: Data(str.utf8), type: self.header.contentType, tab: self.tab))
                 str = ""
             }
         }
@@ -210,7 +209,7 @@ class ContentParser {
 
         image1String.append(NSAttributedString(string: " "))
 
-        image1String.addAttribute(.foregroundColor, value: NSColor.controlAccentColor.blended(withFraction: 0.3, of: NSColor.green) ?? NSColor.green, range: NSRange(location: 0, length: 2))
+        image1String.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: NSRange(location: 0, length: 2))
         image1String.addAttribute(.font, value: NSFont.systemFont(ofSize: tab.fontSize * 1.4), range: NSRange(location: 0, length: 2))
         image1String.addAttribute(.baselineOffset, value: -tab.fontSize * 0.1, range: NSRange(location: 0, length: 2))
         image1String.addAttribute(.paragraphStyle, value: attr[.paragraphStyle] ?? [], range: NSRange(location: 0, length: 2))
@@ -231,7 +230,7 @@ class ContentParser {
 
         let imgName = "quote.opening"
 
-        image1Attachment.image = NSImage(systemSymbolName: imgName, accessibilityDescription: "")
+        image1Attachment.image = NSImage(systemSymbolName: imgName, accessibilityDescription: "Quote")
         
 //        // wrap the attachment in its own attributed string so we can append it
         let image1String = NSMutableAttributedString(attachment: image1Attachment)
@@ -282,10 +281,10 @@ class ContentParser {
     
     var title1Style: [NSAttributedString.Key: Any] {
         let pst = NSMutableParagraphStyle()
-        pst.alignment = .center
-        pst.lineSpacing = 6
-        pst.paragraphSpacing = tab.fontSize * 2
-        pst.paragraphSpacingBefore = tab.fontSize * 3
+        pst.alignment = .left
+        pst.lineSpacing = 2
+        pst.paragraphSpacing = tab.fontSize
+        pst.paragraphSpacingBefore = tab.fontSize
 
         let boldFont = NSFont.systemFont(ofSize: tab.fontSize * 2.5, weight: .bold)
 
@@ -299,9 +298,9 @@ class ContentParser {
     var title2Style: [NSAttributedString.Key: Any] {
         let pst = NSMutableParagraphStyle()
         pst.alignment = .left
-        pst.lineSpacing = 4
+        pst.lineSpacing = 2
         pst.paragraphSpacing = tab.fontSize
-        pst.paragraphSpacingBefore = tab.fontSize * 1.5
+        pst.paragraphSpacingBefore = tab.fontSize
 
         let semiboldFont = NSFont.systemFont(ofSize: tab.fontSize * 1.8, weight: .semibold)
 
@@ -316,15 +315,15 @@ class ContentParser {
         let pst = NSMutableParagraphStyle()
         pst.alignment = .left
         pst.lineSpacing = 2
-        pst.paragraphSpacing = tab.fontSize * 0.8
-        pst.paragraphSpacingBefore = tab.fontSize * 1.2
+        pst.paragraphSpacing = tab.fontSize
+        pst.paragraphSpacingBefore = tab.fontSize
 
         let regularFont = NSFont.systemFont(ofSize: tab.fontSize * 1.5, weight: .regular)
 
         return [
             .font: regularFont,
             .paragraphStyle: pst,
-            .foregroundColor: NSColor.secondaryLabelColor
+            .foregroundColor: NSColor.labelColor
         ]
     }
     
@@ -355,6 +354,7 @@ class ContentParser {
         return [
             .font: NSFont.monospacedSystemFont(ofSize: tab.fontSize, weight: .regular),
             .foregroundColor: NSColor.secondaryLabelColor,
+            .backgroundColor: NSColor.controlBackgroundColor,
             .paragraphStyle: pst
         ]
     }
