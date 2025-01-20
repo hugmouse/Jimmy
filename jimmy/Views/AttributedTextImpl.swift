@@ -60,7 +60,7 @@ extension AttributedTextImpl: NSViewRepresentable {
         // we are setting the container's width manually
         nsView.textContainer?.widthTracksTextView = false
         nsView.linkTextAttributes = [
-            NSAttributedString.Key.foregroundColor: NSColor.controlAccentColor
+            NSAttributedString.Key.foregroundColor: NSColor.linkColor
         ]
         
         nsView.displaysLinkToolTips = false
@@ -75,10 +75,6 @@ extension AttributedTextImpl: NSViewRepresentable {
             nsView.textStorage?.setAttributedString(attributedText)
             nsView.maxLayoutWidth = maxLayoutWidth
             nsView.onLinkHover = self.onHoverLink
-            
-            nsView.linkTextAttributes = [
-                NSAttributedString.Key.foregroundColor: NSColor.controlAccentColor
-            ]
             nsView.alllinks = []
             
             nsView.textContainer?.maximumNumberOfLines = context.environment.lineLimit ?? 0
@@ -150,27 +146,23 @@ extension AttributedTextImpl {
                             // Hovering this link
                             hoveredUrl = url
                             wasHovered = true
-//                            self.addCursorRect(self.bounds, cursor: .pointingHand)
-                            //                            storage.removeAttribute(.link, range: range)
                             self.linkTextAttributes = [
-                                NSAttributedString.Key.foregroundColor: NSColor.green.blended(withFraction: 0.5, of: NSColor.controlAccentColor) ?? NSColor.green
+                                NSAttributedString.Key.foregroundColor: NSColor.controlAccentColor
                             ]
-                            
-                            storage.addAttribute(.foregroundColor, value: NSColor.green.blended(withFraction: 0.5, of: NSColor.controlAccentColor) ?? NSColor.green, range: range)
+                            storage.addAttribute(.foregroundColor, value: NSColor.controlAccentColor, range: range)
                         } else {
                             
-                            // not hovering this link
+//                             not hovering this link
                             storage.removeAttribute(.link, range: range)
-                            storage.addAttribute(.foregroundColor, value: NSColor.controlAccentColor, range: range)
+                            storage.addAttribute(.foregroundColor, value: NSColor.linkColor, range: range)
                             alllinks.append(AttributedStringLink(url: u, range: range))
                         }
                     }
                 }
             } else {
                 // not a link
-                
                 self.linkTextAttributes = [
-                    NSAttributedString.Key.foregroundColor: NSColor.controlAccentColor
+                    NSAttributedString.Key.foregroundColor: NSColor.linkColor
                 ]
                 for oldlink in alllinks {
                     storage.addAttribute(.link, value: oldlink.url, range: oldlink.range)
@@ -211,9 +203,6 @@ extension AttributedTextImpl {
         }
         @objc func newTab(_ sender: CustomMenuItem) {
             if let url = sender.url {
-                self.linkTextAttributes = [
-                    NSAttributedString.Key.foregroundColor: NSColor.controlAccentColor
-                ]
                 self.alllinks = []
                 NSWorkspace.shared.open(url)
             }
