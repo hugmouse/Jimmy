@@ -17,7 +17,6 @@ class Tab: ObservableObject, Hashable, Identifiable {
     @Published var textContent: NSAttributedString
     @Published var id: UUID
     @Published var loading: Bool = false
-    @Published var history: [TabHistoryItem]
     @Published var status = ""
     @Published var icon = ""
     @Published var ignoredCertValidation = false
@@ -25,23 +24,24 @@ class Tab: ObservableObject, Hashable, Identifiable {
     @Published var scrollPos: Double = 0.0
     
     var emojis = Emojis()
-    private var globalHistory: History
+    @Published var tabSpecificHistory: History
     
     
     private var client: Client
     private var ranges: [Range<String.Index>]?
     private var selectedRangeIndex = 0
+    private var isNavigatingHistory = false
     
     let homeTemplate = """
-            # Welcome to JimmJimm
+            # Welcome to JimmyP
 
-            Simple gemini browser for macOS
+            Simple gemini browser for macOS, fork of Jimmy.
             
             ## Get started
 
             Just type the URL you want to visit above, and press enter!
             Save your favorite sites as bookmarks to be able to reference them later.
-
+            
             ## 🚀 A few links
 
             Here are some sites you can visit to start off:
@@ -64,16 +64,14 @@ class Tab: ObservableObject, Hashable, Identifiable {
         self.url = url
         self.content = []
         self.id = UUID()
-        self.history = []
-        self.globalHistory = History()
+        self.tabSpecificHistory = History()
         self.client = Client(host: "localhost", port: 1965, validateCert: true)
         self.certs = IgnoredCertificates()
         self.textContent = NSAttributedString(string: "")
+        
+        self.tabSpecificHistory.clear()
     }
     
-    func setHistory(_ histo: History) {
-        globalHistory = histo
-    }
     
     static func == (lhs: Tab, rhs: Tab) -> Bool {
         return lhs.id == rhs.id
@@ -92,22 +90,12 @@ class Tab: ObservableObject, Hashable, Identifiable {
     
     
     func load() {
-        if history.count > 1 {
-            var last = history.removeLast()
-            last.scrollposition = self.scrollPos
-            if (last.url != self.url) {
-                history.append(last)
-            }
-        }
-
         self.client.stop()
         selectedRangeIndex = 0
         self.ranges = []
         guard let host = self.url.host else {
             return
         }
-        
-        
         
         self.icon = emojis.emoji(host)
         
@@ -130,19 +118,27 @@ class Tab: ObservableObject, Hashable, Identifiable {
     }
     
     func back() {
-        self.client.stop()
-        if self.history.count > 1 {
-            self.history.removeLast()
-            let item = self.history.removeLast()
-            self.url = item.url;
-            print("scroll pos was", item.scrollposition)
-            cb(error: item.error, message: item.message)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                self.scrollPos = item.scrollposition * 1.3
+        if tabSpecificHistory.canGoBack {
+            isNavigatingHistory = true
+            tabSpecificHistory.goBack()
+            if let previousItem = tabSpecificHistory.currentItem {
+                self.url = previousItem.url
+                self.load()
             }
         }
     }
-    
+
+    func forward() {
+        if tabSpecificHistory.canGoForward {
+            isNavigatingHistory = true
+            tabSpecificHistory.goForward()
+            if let nextItem = tabSpecificHistory.currentItem {
+                self.url = nextItem.url
+                self.load()
+            }
+        }
+    }
+
     func cb(error: NWError?, message: Data?) {
         DispatchQueue.main.async {
             self.resetUIState()
@@ -164,10 +160,6 @@ class Tab: ObservableObject, Hashable, Identifiable {
     }
 
     private func handleError(error: NWError, message: Data?) {
-        let historyItem = HistoryItem(url: self.url, date: Date(), snippet: "Error")
-        self.globalHistory.addItem(historyItem)
-        self.history.append(TabHistoryItem(url: self.url, scrollposition: 0.0, error: error, message: message))
-
         let contentParser = ContentParser(content: Data([]), tab: self)
         let errorContent: [LineView] = {
             switch error {
@@ -186,17 +178,14 @@ class Tab: ObservableObject, Hashable, Identifiable {
 
     private func handleMessage(message: Data) {
         let parsedMessage = ContentParser(content: message, tab: self)
-        let historyItem = HistoryItem(url: self.url, date: Date(), snippet: String(parsedMessage.firstTitle))
-
-        if !(30...39).contains(parsedMessage.header.code) {
-            self.history.append(TabHistoryItem(url: self.url, scrollposition: 0.0, error: nil, message: message))
-            self.globalHistory.addItem(historyItem)
-        }
-
         switch parsedMessage.header.code {
         case 10...19:
             self.content = createInputContent(parsedMessage: parsedMessage)
         case 20...29:
+            if !isNavigatingHistory {
+                    tabSpecificHistory.pushState(HistoryItem(url: self.url, date: Date(), snippet: String(parsedMessage.firstTitle)))
+                }
+            isNavigatingHistory = false // Reset the flag
             if !parsedMessage.header.contentType.starts(with: "text/") &&
                 !parsedMessage.header.contentType.starts(with: "image/") {
                 return // Let ContentParser trigger the file save dialog

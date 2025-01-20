@@ -12,8 +12,8 @@ struct ContentView: View {
     
     @EnvironmentObject var bookmarks: Bookmarks
     @EnvironmentObject var actions: Actions
-    @EnvironmentObject var history: History
-    @StateObject var tab: Tab = Tab(url: URL(string: "gemini://about")!)
+    @EnvironmentObject var globalHistory: History
+    @StateObject var tabStateObject: Tab = Tab(url: URL(string: "gemini://about")!)
     @State var showPopover = false
     @State private var old = 0
     @State private var rotation = 0.0
@@ -23,31 +23,33 @@ struct ContentView: View {
     @GestureState var isDetectingLongPress = false
 
     let timer = Timer.publish(every: 0.01, on: .main, in: .common).autoconnect()
-    
-    init() {
-        
-    }
-    
+
+
     var body: some View {
         GeometryReader { geometry in
             VStack {
-                TabContentWrapperView(tab: tab, close: {
+                TabContentWrapperView(tab: tabStateObject, close: {
                     DispatchQueue.main.async {
                         showHistorySearch = false
                     }
                 })
+                .padding()
+                .border(.yellow)
+                Text("Current history index: \(tabStateObject.tabSpecificHistory.currentIndex)")
+                Text("Can we go back? \(tabStateObject.tabSpecificHistory.canGoBack)")
+                Text("Can we go forward? \(tabStateObject.tabSpecificHistory.canGoForward)")
             }
             .onReceive(Just(actions.reload)) { val in
                 //tab.load()
                 if old != val {
                     old = val
                     DispatchQueue.main.async{
-                        tab.load()
+                        tabStateObject.load()
                     }
                 }
                 
             }
-            .navigationTitle(tab.emojis.emoji(tab.url.host ?? "") + " " + (tab.url.host?.idnaDecoded ?? ""))
+            .navigationTitle(tabStateObject.emojis.emoji(tabStateObject.url.host ?? "") + " " + (tabStateObject.url.host?.idnaDecoded ?? ""))
             
             .frame(maxWidth: .infinity, minHeight: 200)
             .toolbar{
@@ -55,11 +57,11 @@ struct ContentView: View {
             }
             
             .onOpenURL(perform: { url in
-                tab.url = url
+                tabStateObject.url = url
                 DispatchQueue.main.async {
                     self.showHistorySearch = false
                 }
-                tab.load()
+                tabStateObject.load()
             })
             .onDisappear(perform: {
                 print("disappearing", getCurrentWindows().count)
@@ -71,7 +73,6 @@ struct ContentView: View {
                 }
             })
             .onAppear(perform: {
-                tab.setHistory(history)
                 DispatchQueue.main.async {
                     
                     guard let firstWindow = NSApp.windows.first(where: { win in
@@ -107,7 +108,7 @@ struct ContentView: View {
                     if let last = lastWindow {
                         last.makeKeyAndOrderFront(nil)
                     }
-                    tab.load()
+                    tabStateObject.load()
                 }
             })
         }
@@ -116,14 +117,14 @@ struct ContentView: View {
     @ToolbarContentBuilder
     func urlToolBarContent(_ geometry: GeometryProxy) -> some ToolbarContent {
         let url = Binding<String>(
-            get: { tab.url.absoluteString.decodedURLString! },
+            get: { tabStateObject.url.absoluteString.decodedURLString! },
           set: { s in
               urlsearch = s
-              tab.url = URL(unicodeString: s) ?? URL(string: "gemini://about")!
+              tabStateObject.url = URL(unicodeString: s) ?? URL(string: "gemini://about")!
           }
         )
         
-        ToolbarItem(placement: .navigation) { // (1) we can specify location for each ToolbarItem
+        ToolbarItemGroup(placement: .navigation) { // (1) we can specify location for each ToolbarItem
             let press = LongPressGesture(minimumDuration: 3)
                 .updating($isDetectingLongPress) { currentState, gestureState, transaction in
                     print(currentState, transaction)
@@ -132,10 +133,15 @@ struct ContentView: View {
             Button(action: back) {
                 Image(systemName: "arrow.backward").imageScale(.large).padding(.trailing, 8)
             }
-            .disabled(tab.history.count <= 1)
+            .disabled(!tabStateObject.tabSpecificHistory.canGoBack)
             .buttonStyle(.borderless)
             .gesture(press)
-
+            Button(action: forward) {
+                Image(systemName: "arrow.forward").imageScale(.large).padding(.trailing, 8)
+            }
+            .disabled(!tabStateObject.tabSpecificHistory.canGoForward)
+            .buttonStyle(.borderless)
+            .gesture(press)
         }
         
         ToolbarItemGroup(placement: .principal) {
@@ -149,7 +155,7 @@ struct ContentView: View {
                         go()
                     }
                     .onChange(of: urlsearch, perform: { u in
-                        showHistorySearch = history.items.contains(where: { hist in
+                        showHistorySearch = globalHistory.items.contains(where: { hist in
                             hist.url.absoluteString.replacingOccurrences(of: "gemini://", with: "").contains(u.replacingOccurrences(of: "gemini://", with: ""))
                         }) && typing && u.starts(with: "gemini://")
                         if !u.starts(with: "gemini://") {
@@ -162,7 +168,7 @@ struct ContentView: View {
                                 self.showHistorySearch = false
                             }
                         })
-                            .environmentObject(tab)
+                            .environmentObject(tabStateObject)
                     })
                     
                     .frame(minWidth: 300, idealWidth: geometry.size.width/2, maxWidth: .infinity)
@@ -170,7 +176,7 @@ struct ContentView: View {
                     .background(Color("urlbackground"))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .textFieldStyle(.roundedBorder)
-                if (tab.loading) {
+                if (tabStateObject.loading) {
                     Image(systemName: "arrow.triangle.2.circlepath")
                     .foregroundColor(Color.gray)
                     .rotationEffect(Angle(degrees: rotation))
@@ -182,16 +188,16 @@ struct ContentView: View {
                 }
                 
                 Button(action: toggleValidateCert) {
-                    Image(systemName: (tab.ignoredCertValidation ? "lock.open" : "lock"))
-                        .foregroundColor((tab.ignoredCertValidation ? Color.red : Color.green))
+                    Image(systemName: (tabStateObject.ignoredCertValidation ? "lock.open" : "lock"))
+                        .foregroundColor((tabStateObject.ignoredCertValidation ? Color.red : Color.green))
                         .imageScale(.large).padding(.leading, 0)
                         .opacity(0.7)
-                }.disabled(!tab.ignoredCertValidation)
-                    .padding(.trailing, tab.loading ? 20 : 0)
+                }.disabled(!tabStateObject.ignoredCertValidation)
+                    .padding(.trailing, tabStateObject.loading ? 20 : 0)
             }
 
             Button(action: go) {
-                Image(systemName: (tab.loading ? "xmark" : "arrow.clockwise"))
+                Image(systemName: (tabStateObject.loading ? "xmark" : "arrow.clockwise"))
                     .imageScale(.large).padding(.leading, 0)
             }
             .buttonStyle(.borderless)
@@ -211,7 +217,7 @@ struct ContentView: View {
             }
             .buttonStyle(.borderless)
             .popover(isPresented: $showPopover, attachmentAnchor: .point(.bottom), arrowEdge: .bottom) {
-                BookmarksView(tab: tab, close: { showPopover = false }).frame(maxWidth: .infinity)
+                BookmarksView(tab: tabStateObject, close: { showPopover = false }).frame(maxWidth: .infinity)
             }
         })
         
@@ -223,14 +229,14 @@ struct ContentView: View {
     }
     
     var bookmarked: Bool {
-        return bookmarks.items.contains(where: { $0.url == tab.url })
+        return bookmarks.items.contains(where: { $0.url == tabStateObject.url })
     }
     
     func bookmark() {
         if (bookmarked) {
-            bookmarks.items = bookmarks.items.filter( { $0.url != tab.url } )
+            bookmarks.items = bookmarks.items.filter( { $0.url != tabStateObject.url } )
         } else {
-            bookmarks.items.append(Bookmark(url: tab.url))
+            bookmarks.items.append(Bookmark(url: tabStateObject.url))
         }
         
         bookmarks.save()
@@ -238,15 +244,15 @@ struct ContentView: View {
     
     func go() {
 
-        if (tab.loading) {
-            tab.stop()
+        if (tabStateObject.loading) {
+            tabStateObject.stop()
         } else {
-            if !tab.url.absoluteString.starts(with: "gemini://") {
-                let u = tab.url.absoluteString
-                tab.url = URL(string: "gemini://" + u) ?? URL(string: "gemini://about/")!
+            if !tabStateObject.url.absoluteString.starts(with: "gemini://") {
+                let u = tabStateObject.url.absoluteString
+                tabStateObject.url = URL(string: "gemini://" + u) ?? URL(string: "gemini://about/")!
             }
             
-            tab.load()
+            tabStateObject.load()
         }
         DispatchQueue.main.async {
             showHistorySearch = false
@@ -254,7 +260,14 @@ struct ContentView: View {
     }
     
     func back() {
-        tab.back()
+        tabStateObject.back()
+        DispatchQueue.main.async {
+            showHistorySearch = false
+        }
+    }
+    
+    func forward() {
+        tabStateObject.forward()
         DispatchQueue.main.async {
             showHistorySearch = false
         }
@@ -265,12 +278,12 @@ struct ContentView: View {
     }
     
     func toggleValidateCert() {
-        print("ignored cert validation", tab.certs.items.contains(tab.url.host ?? ""))
-        if tab.certs.items.contains(tab.url.host ?? "") {
-            tab.certs.items.removeAll(where: {$0 == tab.url.host})
-            tab.load()
+        print("ignored cert validation", tabStateObject.certs.items.contains(tabStateObject.url.host ?? ""))
+        if tabStateObject.certs.items.contains(tabStateObject.url.host ?? "") {
+            tabStateObject.certs.items.removeAll(where: {$0 == tabStateObject.url.host})
+            tabStateObject.load()
         } else {
-            tab.certs.items.append(tab.url.host ?? "")
+            tabStateObject.certs.items.append(tabStateObject.url.host ?? "")
         }
     }
 }
