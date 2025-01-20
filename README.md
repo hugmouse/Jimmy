@@ -1,4 +1,4 @@
-<img src="logoJimmyPlus.svg" width="80">
+<img src="logoJimmyPlus.svg" width="128">
 
 #  JimmyPlus
 
