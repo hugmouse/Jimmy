@@ -25,3 +25,9 @@ JimmyPlus is a native [gemini](https://en.wikipedia.org/wiki/Gemini_(protocol)) 
 - Asks for validation of self signed certificates
 - Show a red lock for self-signed certificates and a green one for fully valid certificates
 - And more planned, see [the issues](https://github.com/jfoucher/Jimmy/issues)
+
+## Screenshots
+
+| ![JimmyPlus - Dark mode](screenshots/darkmode_plus.webp) | ![JimmyPlus - Light mode](screenshots/lightmode_plus.webp) |
+| -------------------------------------------------------- | ---------------------------------------------------------- |
+| JimmyPlus - Dark mode                                    | JimmyPlus - Light mode                                     |
