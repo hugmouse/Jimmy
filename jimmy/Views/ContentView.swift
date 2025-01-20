@@ -33,11 +33,6 @@ struct ContentView: View {
                         showHistorySearch = false
                     }
                 })
-                .padding()
-                .border(.yellow)
-                Text("Current history index: \(tabStateObject.tabSpecificHistory.currentIndex)")
-                Text("Can we go back? \(tabStateObject.tabSpecificHistory.canGoBack)")
-                Text("Can we go forward? \(tabStateObject.tabSpecificHistory.canGoForward)")
             }
             .onReceive(Just(actions.reload)) { val in
                 //tab.load()
@@ -124,25 +119,37 @@ struct ContentView: View {
           }
         )
         
-        ToolbarItemGroup(placement: .navigation) { // (1) we can specify location for each ToolbarItem
-            let press = LongPressGesture(minimumDuration: 3)
-                .updating($isDetectingLongPress) { currentState, gestureState, transaction in
-                    print(currentState, transaction)
-                    gestureState = currentState
+        ToolbarItem(placement: .navigation) {
+            HStack() {
+                // Back Button
+                Button(action: back) {
+                    Image(systemName: "arrow.backward")
+                        .imageScale(.large)
+                        .frame(width: 22, height: 22)
                 }
-            Button(action: back) {
-                Image(systemName: "arrow.backward").imageScale(.large).padding(.trailing, 8)
+                .disabled(!tabStateObject.tabSpecificHistory.canGoBack)
+                .buttonStyle(.borderless)
+
+                // Forward Button
+                Button(action: forward) {
+                    Image(systemName: "arrow.forward")
+                        .imageScale(.large)
+                        .frame(width: 22, height: 22)
+                }
+                .disabled(!tabStateObject.tabSpecificHistory.canGoForward)
+                .buttonStyle(.borderless)
+
+                // Reload/Stop Button
+                Button(action: go) {
+                    Image(systemName: tabStateObject.loading ? "xmark" : "arrow.clockwise")
+                        .imageScale(.medium)
+                        .frame(width: 32, height: 22)
+                }
+                .disabled(url.wrappedValue.isEmpty)
+                .buttonStyle(.borderless)
             }
-            .disabled(!tabStateObject.tabSpecificHistory.canGoBack)
-            .buttonStyle(.borderless)
-            .gesture(press)
-            Button(action: forward) {
-                Image(systemName: "arrow.forward").imageScale(.large).padding(.trailing, 8)
-            }
-            .disabled(!tabStateObject.tabSpecificHistory.canGoForward)
-            .buttonStyle(.borderless)
-            .gesture(press)
         }
+
         
         ToolbarItemGroup(placement: .principal) {
             
@@ -186,7 +193,7 @@ struct ContentView: View {
                         .padding(.trailing, 8)
                         
                 }
-                
+            
                 Button(action: toggleValidateCert) {
                     Image(systemName: (tabStateObject.ignoredCertValidation ? "lock.open" : "lock"))
                         .foregroundColor((tabStateObject.ignoredCertValidation ? Color.red : Color.green))
@@ -195,14 +202,6 @@ struct ContentView: View {
                 }.disabled(!tabStateObject.ignoredCertValidation)
                     .padding(.trailing, tabStateObject.loading ? 20 : 0)
             }
-
-            Button(action: go) {
-                Image(systemName: (tabStateObject.loading ? "xmark" : "arrow.clockwise"))
-                    .imageScale(.large).padding(.leading, 0)
-            }
-            .buttonStyle(.borderless)
-            .disabled(url.wrappedValue.isEmpty)
-            
             Spacer(minLength: 50)
         }
         
