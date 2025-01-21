@@ -33,7 +33,7 @@ class Tab: ObservableObject, Hashable, Identifiable {
     private var isNavigatingHistory = false
     
     let homeTemplate = """
-            # Welcome to JimmyP
+            # Welcome to JimmyPlus
 
             Simple gemini browser for macOS, fork of Jimmy.
             
@@ -49,11 +49,7 @@ class Tab: ObservableObject, Hashable, Identifiable {
             => gemini://medusae.space/
             => gemini://transjovian.org/
             => gemini://geminispace.info/
-            => gemini://gemini.6px.eu/ My personal capsule
-
-            ### Any problems?
-            => https://github.com/jfoucher/Jimmy/issues Open an issue on GitHub
-            => mailto:jfoucher@6px.fr Contact me by email
+            => gemini://gemini.6px.eu/ jfourcher's capsule
             
             ### About gemini
             => gemini://geminiprotocol.net/docs/faq.gmi Gemini Protocol FAQ
@@ -87,8 +83,6 @@ class Tab: ObservableObject, Hashable, Identifiable {
         self.status = ""
     }
     
-    
-    
     func load() {
         self.client.stop()
         selectedRangeIndex = 0
@@ -107,10 +101,10 @@ class Tab: ObservableObject, Hashable, Identifiable {
         DispatchQueue.main.async {
             self.loading = true
             self.status = "Loading " + self.url.absoluteString.replacingOccurrences(of: "gemini://", with: "")
-            self.ignoredCertValidation = self.certs.items.contains(self.url.host ?? "")
+            self.ignoredCertValidation = self.certs.items.contains(where: { $0.id == self.url.host ?? "" })
         }
         
-        self.client = Client(host: host, port: 1965, validateCert: !certs.items.contains(url.host ?? ""))
+        self.client = Client(host: host, port: 1965, validateCert: !certs.items.contains(where: { $0.id == self.url.host ?? "" }))
         self.client.start()
         self.client.dataReceivedCallback = cb(error:message:)
         

@@ -28,11 +28,15 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack {
-                TabContentWrapperView(tab: tabStateObject, close: {
-                    DispatchQueue.main.async {
-                        showHistorySearch = false
-                    }
-                })
+                if (tabStateObject.url.host == "certs") {
+                    IgnoredCertificatesView()
+                } else {
+                    TabContentWrapperView(tab: tabStateObject, close: {
+                        DispatchQueue.main.async {
+                            showHistorySearch = false
+                        }
+                    })
+                }
             }
             .onReceive(Just(actions.reload)) { val in
                 //tab.load()
@@ -277,12 +281,12 @@ struct ContentView: View {
     }
     
     func toggleValidateCert() {
-        print("ignored cert validation", tabStateObject.certs.items.contains(tabStateObject.url.host ?? ""))
-        if tabStateObject.certs.items.contains(tabStateObject.url.host ?? "") {
-            tabStateObject.certs.items.removeAll(where: {$0 == tabStateObject.url.host})
+        print("ignored cert validation", tabStateObject.certs.items.map {$0.id}.contains(tabStateObject.url.host ?? ""))
+        if tabStateObject.certs.items.map({$0.id}).contains(tabStateObject.url.host ?? "") {
+            tabStateObject.certs.items.removeAll(where: {$0.id == tabStateObject.url.host})
             tabStateObject.load()
         } else {
-            tabStateObject.certs.items.append(tabStateObject.url.host ?? "")
+            tabStateObject.certs.items.append(Cert(id: tabStateObject.url.host ?? ""))
         }
     }
 }

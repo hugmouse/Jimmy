@@ -47,7 +47,7 @@ struct LineView: View, Hashable {
             
             Button(action: {
                 if let host = tab.url.host {
-                    certs.items.append(host)
+                    certs.items.append(Cert(id: host))
                     tab.certs.items = certs.items
                     certs.save()
                     tab.load()
