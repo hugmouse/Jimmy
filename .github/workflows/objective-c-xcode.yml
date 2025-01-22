@@ -1,0 +1,34 @@
+name: Xcode - Build and Analyze
+
+on:
+  release:
+    types: [ created ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and analyse default scheme using xcodebuild command
+    runs-on: macos-latest
+    env:
+        CODE_SIGNING_IDENTITY: ""
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_ENTITLEMENTS: ""
+        CODE_SIGNING_ALLOWED: "NO"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: |
+          xcodebuild clean build analyze
+      - name: Zip the build
+        run: |
+          cd /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/
+          zip -r jimmy.zip jimmy.app
+      - name: Upload zipped build to a release
+        uses: Guerra24/upload-to-release@v1.0.0
+        with:
+          name: "jimmy.zip"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          content-type: application/zip
+          path: |
+            /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/jimmy.zip
