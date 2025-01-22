@@ -25,8 +25,9 @@ jobs:
           cd /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/
           zip -r jimmy.zip jimmy.app
       - name: Upload zipped build to a release
-        uses: d1ceward/release-upload-action@v4.0.0
+        uses: Guerra24/upload-to-release@v1.0.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          files: |
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          content-type: application/zip
+          path: |
             /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/jimmy.zip
