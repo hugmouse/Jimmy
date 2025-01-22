@@ -20,9 +20,13 @@ jobs:
       - name: Build
         run: |
           xcodebuild clean build analyze
-      - name: Upload binary to a release
-        uses: Shopify/upload-to-release@v2.0.0
+      - name: Zip the build
+        run: |
+          cd /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/
+          zip -r jimmy.zip jimmy.app
+      - name: Upload zipped build to a release
+        uses: d1ceward/release-upload-action@v4.0.0
         with:
-            name: JimmyPlus
-            path: /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/jimmy.app/Contents/MacOS/jimmy
-            repo-token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/jimmy.zip
