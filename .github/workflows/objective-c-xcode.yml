@@ -1,10 +1,9 @@
 name: Xcode - Build and Analyze
 
 on:
-  push:
-    branches: [ "main", "ci-cd" ]
-  pull_request:
-    branches: [ "main", "ci-cd" ]
+  release:
+    types: [ created ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -21,3 +20,9 @@ jobs:
       - name: Build
         run: |
           xcodebuild clean build analyze
+      - name: Upload binary to a release
+      - uses: Shopify/upload-to-release@v2
+        with:
+            name: JimmyPlus
+            path: /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/jimmy.app/Contents/MacOS/jimmy
+            repo-token: ${{ secrets.GITHUB_TOKEN }}
