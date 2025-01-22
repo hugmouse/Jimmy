@@ -27,6 +27,7 @@ jobs:
       - name: Upload zipped build to a release
         uses: Guerra24/upload-to-release@v1.0.0
         with:
+          name: jimmy
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           content-type: application/zip
           path: |
