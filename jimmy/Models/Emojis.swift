@@ -65,7 +65,7 @@ class Emojis {
                 if interval > 3600.0 && requestInProgress == false {
                     print("Updating cached emoji")
                     
-                    self.requestEmoji(host)
+//                    self.requestEmoji(host)
                 }
             }
             return emo.emoji
@@ -78,7 +78,7 @@ class Emojis {
                 let interval = now.timeIntervalSince(d)
                 // Only cache generated emojis for 10 seconds
                 if interval > 10.0 && requestInProgress == false {
-                    self.requestEmoji(host)
+//                    self.requestEmoji(host)
                 }
             }
             
@@ -123,15 +123,15 @@ class Emojis {
         return "❓"
     }
     
-    func requestEmoji(_ host: String) {
-        requestInProgress = true
-        let certs = IgnoredCertificates()
-        let client = Client(host: host, port: 1965, validateCert: !certs.items.contains(host))
-        client.start()
-        client.dataReceivedCallback = resp(host)
-        
-        client.send(data: ("gemini://" + host + "/favicon.txt\r\n").data(using: .utf8)!)
-    }
+//    func requestEmoji(_ host: String) {
+//        requestInProgress = true
+//        let certs = IgnoredCertificates()
+//        let client = Client(host: host, port: 1965, validateCert: !certs.items.contains(host))
+//        client.start()
+//        client.dataReceivedCallback = resp(host)
+//        
+//        client.send(data: ("gemini://" + host + "/favicon.txt\r\n").data(using: .utf8)!)
+//    }
     
     func resp(_ host: String) -> (Error?, Data?) -> Void {
         return  { error, message in
