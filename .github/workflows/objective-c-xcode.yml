@@ -21,7 +21,7 @@ jobs:
         run: |
           xcodebuild clean build analyze
       - name: Upload binary to a release
-        uses: Shopify/upload-to-release@v1
+        uses: Shopify/upload-to-release@v2.0.0
         with:
             name: JimmyPlus
             path: /Users/runner/work/JimmyPlus/JimmyPlus/build/Release/jimmy.app/Contents/MacOS/jimmy
